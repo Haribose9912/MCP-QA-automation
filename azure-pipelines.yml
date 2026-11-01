@@ -1,0 +1,56 @@
+trigger: none
+
+pr:
+  branches:
+    include:
+      - '*'
+
+pool:
+  vmImage: windows-latest
+
+variables:
+  buildConfiguration: Release
+
+steps:
+  - checkout: self
+
+  - task: UseDotNet@2
+    displayName: Install .NET 10 SDK
+    inputs:
+      packageType: sdk
+      version: 10.0.x
+
+  - script: dotnet restore .\Tests\PlaywrightMcpServer.Tests.csproj
+    displayName: Restore
+
+  - script: dotnet build .\Tests\PlaywrightMcpServer.Tests.csproj --configuration $(buildConfiguration) --no-restore
+    displayName: Build
+
+  - pwsh: .\Tests\bin\$(buildConfiguration)\net10.0\playwright.ps1 install chromium
+    displayName: Install Playwright Chromium
+
+  - script: >-
+      dotnet test .\Tests\PlaywrightMcpServer.Tests.csproj
+      --configuration $(buildConfiguration)
+      --no-build
+      --filter "Category=Smoke"
+      --logger "trx;LogFileName=smoke-tests.trx"
+      --results-directory "$(Agent.TempDirectory)\TestResults"
+    displayName: Run smoke tests
+
+  - task: PublishTestResults@2
+    displayName: Publish smoke test results
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: VSTest
+      testResultsFiles: '*.trx'
+      searchFolder: '$(Agent.TempDirectory)\TestResults'
+      failTaskOnFailedTests: true
+
+  - task: PublishPipelineArtifact@1
+    displayName: Publish Extent HTML report
+    condition: succeededOrFailed()
+    inputs:
+      targetPath: 'TestResults\ExtentReport.html'
+      artifact: ExtentReport
+      publishLocation: pipeline

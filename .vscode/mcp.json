@@ -1,0 +1,13 @@
+{
+  "servers": {
+    "playwright-mcp": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/PlaywrightMcpServer.csproj"
+      ]
+    }
+  }
+}
